@@ -128,16 +128,18 @@ class ChangeList(main.ChangeList):
         super(ChangeList, self).__init__(request, *args, **kwargs)
 
     def get_query_set(self, *args, **kwargs):
-        return super(ChangeList, self).get_query_set(*args, **kwargs).order_by('tree_id', 'lft')
+        mptt_opts = self.model._mptt_meta
+        return super(ChangeList, self).get_query_set(*args, **kwargs).order_by(mptt_opts.tree_id_attr, mptt_opts.left_attr)
 
     def get_results(self, request):
+        mptt_opts = self.model._mptt_meta
         if self.model_admin.filter_include_ancestors:
-            clauses = [Q(
-                tree_id=tree_id,
-                lft__lte=lft,
-                rght__gte=rght,
-            ) for lft, rght, tree_id in\
-                       self.query_set.values_list('lft', 'rght', 'tree_id')]
+            clauses = [Q(**{
+                mptt_opts.tree_id_attr: tree_id,
+                mptt_opts.left_attr + '__lte': lft,
+                mptt_opts.right_attr + '__gte': rght,
+            }) for lft, rght, tree_id in \
+                self.query_set.values_list(mptt_opts.left_attr, mptt_opts.right_attr, mptt_opts.tree_id_attr)]
             if clauses:
                 self.query_set = self.model._default_manager.filter(reduce(lambda p, q: p|q, clauses))
 
@@ -210,7 +212,7 @@ class TreeAdmin(admin.ModelAdmin):
         r += '<span id="page_marker-%d" class="page_marker%s" style="width: %dpx;">&nbsp;</span>&nbsp;' % (
             item.id, editable_class, 14+item.level*18)
         #        r += '<span tabindex="0">'
-        if hasattr(item, 'short_title'):
+        if hasattr(item, 'short_title') and callable(item.short_title):
             r += item.short_title()
         else:
             r += unicode(item)
@@ -383,7 +385,7 @@ class TreeAdmin(admin.ModelAdmin):
         pasted_on = self.model.objects.get(pk=request.POST.get('pasted_on'))
         position = request.POST.get('position')
 
-        if position in ('last-child', 'left'):
+        if position in ('last-child', 'left', 'right'):
             try:
                 self.model._tree_manager.move_node(cut_item, pasted_on, position)
             except InvalidMove, e:
