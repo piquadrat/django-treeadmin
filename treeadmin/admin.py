@@ -3,12 +3,12 @@ from django.contrib import admin
 from django.contrib.admin.views import main
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
-from django.utils import simplejson
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _, ugettext
 
 from mptt.exceptions import InvalidMove
 
+import json
 import logging
 
 
