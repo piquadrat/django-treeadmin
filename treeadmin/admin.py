@@ -48,7 +48,9 @@ def _build_tree_structure(cls):
     else:
         mptt_opts = cls._meta
 
-    for p_id, parent_id in cls.objects.order_by(mptt_opts.tree_id_attr, mptt_opts.left_attr).values_list("pk", "%s_id" % mptt_opts.parent_attr):
+    values_list = [tuple(dct.values()) for dct in cls.objects.order_by(mptt_opts.tree_id_attr, mptt_opts.left_attr).values("pk", "%s_id" % mptt_opts.parent_attr)]
+
+    for p_id, parent_id in values_list:
         all_nodes[p_id] = []
 
         if parent_id:
