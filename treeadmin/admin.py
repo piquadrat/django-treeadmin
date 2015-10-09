@@ -6,6 +6,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.utils import simplejson
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _, ugettext
+from django import VERSION as django_version
 
 from mptt.exceptions import InvalidMove
 
@@ -129,9 +130,22 @@ class ChangeList(main.ChangeList):
         self.user = request.user
         super(ChangeList, self).__init__(request, *args, **kwargs)
 
-    def get_query_set(self, *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
         mptt_opts = self.model._mptt_meta
-        return super(ChangeList, self).get_query_set(*args, **kwargs).order_by(mptt_opts.tree_id_attr, mptt_opts.left_attr)
+        get_qs = getattr(super(ChangeList, self), 'get_queryset', super(ChangeList, self).get_query_set)
+        return get_qs(*args, **kwargs).order_by(mptt_opts.tree_id_attr, mptt_opts.left_attr)
+    
+    if django_version < (1, 6):
+        get_query_set = get_queryset
+        
+        @property
+        def query_set(self):
+            return self.queryset
+        
+        @query_set.setter
+        def query_set(self, qs):
+            self.queryset = qs
+        
 
     def get_results(self, request):
         mptt_opts = self.model._mptt_meta
@@ -141,9 +155,9 @@ class ChangeList(main.ChangeList):
                 mptt_opts.left_attr + '__lte': lft,
                 mptt_opts.right_attr + '__gte': rght,
             }) for lft, rght, tree_id in \
-                self.query_set.values_list(mptt_opts.left_attr, mptt_opts.right_attr, mptt_opts.tree_id_attr)]
+                self.queryset.values_list(mptt_opts.left_attr, mptt_opts.right_attr, mptt_opts.tree_id_attr)]
             if clauses:
-                self.query_set = self.model._default_manager.filter(reduce(lambda p, q: p|q, clauses))
+                self.queryset = self.model._default_manager.filter(reduce(lambda p, q: p|q, clauses))
 
         super(ChangeList, self).get_results(request)
 
