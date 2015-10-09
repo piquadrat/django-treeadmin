@@ -1,9 +1,10 @@
 from django.conf import settings as django_settings
 from django.contrib import admin
 from django.contrib.admin.views import main
+from django.contrib import auth
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
-from django.utils import simplejson
+import json
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _, ugettext
 
@@ -146,7 +147,7 @@ class ChangeList(main.ChangeList):
         super(ChangeList, self).get_results(request)
 
         opts = self.model_admin.opts
-        label = opts.app_label + '.' + opts.get_change_permission()
+        label = opts.app_label + '.' + auth.get_permission_codename("change",opts)
         for item in self.result_list:
             if self.model_admin.enable_object_permissions:
                 item.feincms_editable = self.model_admin.has_change_permission(request, item)
@@ -318,7 +319,7 @@ class TreeAdmin(admin.ModelAdmin):
                 d.append(b)
 
         # TODO: Shorter: [ y for x,y in zip(a,b) if x!=y ]
-        return HttpResponse(simplejson.dumps(d), mimetype="application/json")
+        return HttpResponse(json.dumps(d), mimetype="application/json")
 
     def get_changelist(self, request, **kwargs):
         return ChangeList
@@ -347,7 +348,7 @@ class TreeAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['TREEADMIN_MEDIA_HOTLINKING'] = self.jquery_use_google_cdn
         extra_context['TREEADMIN_JQUERY_NO_CONFLICT'] = self.jquery_no_conflict
-        extra_context['tree_structure'] = mark_safe(simplejson.dumps(
+        extra_context['tree_structure'] = mark_safe(json.dumps(
             _build_tree_structure(self.model)))
 
         return super(TreeAdmin, self).changelist_view(request, extra_context, *args, **kwargs)
@@ -359,7 +360,7 @@ class TreeAdmin(admin.ModelAdmin):
         """
         if self.enable_object_permissions:
             opts = self.opts
-            r = request.user.has_perm(opts.app_label + '.' + opts.get_change_permission(), obj)
+            r = request.user.has_perm(opts.app_label + '.' + auth.get_permission_codename("change",opts), obj)
         else:
             r = True
 
