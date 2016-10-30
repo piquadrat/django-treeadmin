@@ -9,7 +9,10 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _, ugettext
 
 from mptt.exceptions import InvalidMove
-
+try:
+    import simpljson as json
+except ImportError:
+    import json
 import logging
 
 
